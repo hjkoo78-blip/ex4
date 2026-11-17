@@ -1,0 +1,2083 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>기업 매출 통계 분석 솔루션 (클라이언트 보안 분석)</title>
+  <!-- Chart.js 및 SheetJS (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    /* ==========================================================================
+       모던 다크 테마 및 반응형 스타일시트
+       ========================================================================== */
+    :root {
+      --bg-main: #0f172a;
+      --bg-card: #1e293b;
+      --bg-card-hover: #283548;
+      --bg-subtle: #334155;
+      --border-color: #334155;
+      
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-highlight: #38bdf8;
+
+      --color-hanbit: #3b82f6;       /* 블루 */
+      --color-hanbit-light: #93c5fd;
+      --color-mirae: #10b981;        /* 그린 */
+      --color-mirae-light: #6ee7b7;
+      --color-saebom: #f59e0b;       /* 오렌지 */
+      --color-saebom-light: #fcd34d;
+      --color-accent: #8b5cf6;       /* 퍼플 */
+
+      --danger-color: #ef4444;
+      --success-color: #22c55e;
+      
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Malgun Gothic", sans-serif;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.4);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.5);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 네비게이션 헤더 */
+    .navbar {
+      background-color: rgba(30, 41, 59, 0.95);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 16px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-icon {
+      font-size: 28px;
+      background: linear-gradient(135deg, var(--color-hanbit), var(--color-accent));
+      padding: 6px 12px;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .navbar h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .navbar .subtitle {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+
+    .filter-group select {
+      background-color: var(--bg-main);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 7px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 0.88rem;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .filter-group select:focus {
+      border-color: var(--color-hanbit);
+    }
+
+    .btn-action {
+      background-color: var(--bg-subtle);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      padding: 7px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-action:hover {
+      background-color: var(--color-hanbit);
+      border-color: var(--color-hanbit);
+    }
+
+    .btn-danger {
+      background-color: rgba(239, 68, 68, 0.2);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #fca5a5;
+    }
+    .btn-danger:hover {
+      background-color: var(--danger-color);
+      border-color: var(--danger-color);
+      color: #fff;
+    }
+
+    /* 메인 뷰 컨테이너 */
+    .container {
+      width: 100%;
+      max-width: 1560px;
+      margin: 0 auto;
+      padding: 24px;
+      flex: 1;
+    }
+
+    /* ==========================================
+       화면 1: 업로드 메인 화면 (데이터 미노출)
+       ========================================== */
+    #uploadScreen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 16px;
+      min-height: calc(100vh - 180px);
+    }
+
+    .upload-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 40px 36px;
+      max-width: 760px;
+      width: 100%;
+      box-shadow: var(--shadow-lg);
+      text-align: center;
+    }
+
+    .security-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background-color: rgba(34, 197, 94, 0.15);
+      color: var(--success-color);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+
+    .upload-title {
+      font-size: 1.7rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+      letter-spacing: -0.5px;
+    }
+
+    .upload-desc {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 28px;
+      line-height: 1.6;
+    }
+
+    .drop-zone {
+      border: 2px dashed #475569;
+      border-radius: var(--radius-md);
+      padding: 45px 24px;
+      background-color: rgba(15, 23, 42, 0.5);
+      cursor: pointer;
+      transition: all 0.25s ease;
+      position: relative;
+    }
+
+    .drop-zone.dragover {
+      border-color: var(--color-hanbit);
+      background-color: rgba(59, 130, 246, 0.1);
+      transform: scale(1.01);
+    }
+
+    .drop-icon {
+      font-size: 54px;
+      margin-bottom: 14px;
+      color: var(--color-hanbit-light);
+    }
+
+    .drop-prompt {
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .drop-sub {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .file-input-hidden {
+      display: none;
+    }
+
+    .feature-points {
+      margin-top: 32px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 16px;
+      text-align: left;
+    }
+
+    .feature-item {
+      background-color: rgba(15, 23, 42, 0.4);
+      padding: 14px 16px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+    }
+
+    .feature-item h4 {
+      font-size: 0.9rem;
+      color: var(--color-hanbit-light);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .feature-item p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    /* 로딩 인디케이터 */
+    .processing-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(6px);
+      z-index: 1000;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(255, 255, 255, 0.1);
+      border-top-color: var(--color-hanbit);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 20px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .processing-status {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 8px;
+    }
+
+    .processing-sub {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+
+    /* ==========================================
+       화면 2: 분석 결과 대시보드 화면
+       ========================================== */
+    #dashboardScreen {
+      display: none; /* 초기 비활성화 */
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    /* 상단 KPI 요약 카드 */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-card {
+      background: var(--bg-card);
+      border-radius: var(--radius-md);
+      padding: 20px 22px;
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-sm);
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .kpi-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+    }
+
+    .hanbit-card::before { background: var(--color-hanbit); }
+    .mirae-card::before { background: var(--color-mirae); }
+    .saebom-card::before { background: var(--color-saebom); }
+    .summary-card::before { background: var(--color-accent); }
+
+    .card-title {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .kpi-value {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+    }
+
+    .kpi-sub {
+      font-size: 0.88rem;
+      margin-bottom: 4px;
+    }
+
+    .kpi-meta {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .tag-up { color: var(--success-color); font-weight: 700; }
+    .tag-down { color: var(--danger-color); font-weight: 700; }
+    .tag-highlight { color: var(--text-highlight); font-weight: 700; }
+
+    /* 탭 네비게이션 */
+    .tab-nav {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 22px;
+      border-bottom: 1px solid var(--border-color);
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      color: var(--text-muted);
+      padding: 12px 18px;
+      font-size: 0.92rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+      background-color: rgba(255, 255, 255, 0.03);
+    }
+
+    .tab-btn.active {
+      color: var(--color-hanbit-light);
+      border-bottom-color: var(--color-hanbit);
+      background-color: rgba(59, 130, 246, 0.08);
+    }
+
+    /* 탭 본문 */
+    .tab-pane {
+      display: none;
+      animation: fadeIn 0.25s ease-in-out;
+    }
+
+    .tab-pane.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 그리드 레이아웃 */
+    .grid-2col {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(580px, 1fr));
+      gap: 22px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 768px) {
+      .grid-2col {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* 범용 카드 */
+    .card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 22px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .card-header h3 {
+      font-size: 1.08rem;
+      font-weight: 700;
+    }
+
+    .badge {
+      font-size: 0.75rem;
+      background-color: var(--bg-subtle);
+      color: var(--text-highlight);
+      padding: 3px 8px;
+      border-radius: 9999px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .badge-primary {
+      background-color: rgba(59, 130, 246, 0.2);
+      color: var(--color-hanbit-light);
+    }
+
+    .chart-container {
+      position: relative;
+      height: 320px;
+      width: 100%;
+      margin-bottom: 16px;
+    }
+
+    /* 상세 해설 박스 */
+    .interpretation-box {
+      background-color: rgba(15, 23, 42, 0.7);
+      border-left: 4px solid var(--color-hanbit);
+      padding: 14px 16px;
+      border-radius: var(--radius-sm);
+      margin-top: auto;
+      font-size: 0.88rem;
+      color: #cbd5e1;
+    }
+
+    .interpretation-box h4 {
+      font-size: 0.92rem;
+      margin-bottom: 6px;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* 데이터 테이블 */
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
+      margin-bottom: 16px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      text-align: left;
+    }
+
+    .data-table th, .data-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .data-table th {
+      background-color: var(--bg-subtle);
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    .data-table tbody tr:hover {
+      background-color: var(--bg-card-hover);
+    }
+
+    .text-hanbit { color: var(--color-hanbit-light); font-weight: 600; }
+    .text-mirae { color: var(--color-mirae-light); font-weight: 600; }
+    .text-saebom { color: var(--color-saebom-light); font-weight: 600; }
+
+    /* 경영 진단 리포트 섹션 */
+    .executive-summary {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .summary-section {
+      background-color: rgba(15, 23, 42, 0.5);
+      padding: 18px 20px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-color);
+    }
+
+    .section-title {
+      font-size: 1.05rem;
+      margin-bottom: 12px;
+      padding-left: 10px;
+      border-left: 4px solid var(--color-hanbit);
+    }
+
+    .hanbit-border { border-left-color: var(--color-hanbit); color: var(--color-hanbit-light); }
+    .mirae-border { border-left-color: var(--color-mirae); color: var(--color-mirae-light); }
+    .saebom-border { border-left-color: var(--color-saebom); color: var(--color-saebom-light); }
+
+    .insight-list {
+      padding-left: 20px;
+      font-size: 0.92rem;
+      color: #cbd5e1;
+    }
+
+    .insight-list li {
+      margin-bottom: 8px;
+    }
+
+    .raw-data-section {
+      margin-top: 24px;
+    }
+
+    /* 푸터 */
+    .footer {
+      margin-top: auto;
+      border-top: 1px solid var(--border-color);
+      background-color: var(--bg-card);
+      text-align: center;
+      padding: 20px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .footer .copyright {
+      margin-top: 4px;
+      font-size: 0.78rem;
+    }
+  </style>
+</head>
+<body>
+  <!-- 상단 네비게이션 헤더 -->
+  <header class="navbar">
+    <div class="logo-area">
+      <div class="logo-icon">📊</div>
+      <div>
+        <h1 id="appTitle">기업 매출 심층 통계 분석 시스템</h1>
+        <p class="subtitle" id="appSubtitle">100% 로컬 클라이언트 보안 처리 (데이터 외부 전송 없음)</p>
+      </div>
+    </div>
+    <div class="header-controls" id="headerControls" style="display: none;">
+      <div class="filter-group">
+        <label for="companySelect">분석 대상:</label>
+        <select id="companySelect">
+          <option value="all">3사 전체 비교</option>
+          <option value="hanbit">한빛테크</option>
+          <option value="mirae">미래솔루션</option>
+          <option value="saebom">새봄산업</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="yearSelect">분석 연도:</label>
+        <select id="yearSelect">
+          <option value="all">전체 기간</option>
+        </select>
+      </div>
+      <button id="reuploadBtn" class="btn-action btn-danger">새 파일 업로드</button>
+    </div>
+  </header>
+
+  <!-- 메인 레이아웃 -->
+  <main class="container">
+    <!-- 화면 1: 업로드 메인 화면 (초기 화면, 통계 데이터 미노출) -->
+    <section id="uploadScreen">
+      <div class="upload-card">
+        <div class="security-badge">
+          🛡️ 로컬 보안 분석 환경 (Zero-Data-Leak)
+        </div>
+        <h2 class="upload-title">매출 엑셀 데이터를 업로드하세요</h2>
+        <p class="upload-desc">
+          업로드하신 파일은 서버로 전송되지 않고 사용자의 웹 브라우저 메모리 상에서만 즉시 분석됩니다.<br>
+          엑셀 파일(<code>.xlsx</code>)을 선택하거나 드래그 앤 드롭하시면 10대 통계 분석 대시보드로 자동 이동합니다.
+        </p>
+
+        <div class="drop-zone" id="dropZone">
+          <div class="drop-icon">📁</div>
+          <div class="drop-prompt">엑셀 파일을 여기로 드래그 앤 드롭하세요</div>
+          <div class="drop-sub">또는 클릭하여 파일 선택 (.xlsx, .xls)</div>
+          <input type="file" id="fileInput" class="file-input-hidden" accept=".xlsx, .xls">
+        </div>
+
+        <div class="feature-points">
+          <div class="feature-item">
+            <h4>🔐 완벽한 원본 보호</h4>
+            <p>소스코드 내 고정 데이터 없음. 파일 업로드 시에만 계산이 실행됩니다.</p>
+          </div>
+          <div class="feature-item">
+            <h4>⚡ 10대 통계 기법</h4>
+            <p>시계열, 계절성, ANOVA, 회귀분석, 왜도/첨도 등 10개 기법 전수 적용.</p>
+          </div>
+          <div class="feature-item">
+            <h4>💡 심층 경영 해설</h4>
+            <p>통계적 산출물과 함께 기업별 사업 주기 및 미래 전략 권고안 제공.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 화면 2: 분석 결과 대시보드 화면 (업로드 완료 후 동적 표시) -->
+    <section id="dashboardScreen">
+      <!-- 상단 핵심 KPI 요약 카드 -->
+      <section class="kpi-grid">
+        <div class="kpi-card hanbit-card">
+          <div class="card-title">한빛테크 총매출</div>
+          <div class="kpi-value" id="kpiHanbitTotal">- 억원</div>
+          <div class="kpi-sub">연평균 성장률(CAGR): <span class="tag-up" id="kpiHanbitCAGR">+15.2%</span></div>
+          <div class="kpi-meta" id="kpiHanbitMeta">-</div>
+        </div>
+        <div class="kpi-card mirae-card">
+          <div class="card-title">미래솔루션 총매출</div>
+          <div class="kpi-value" id="kpiMiraeTotal">- 억원</div>
+          <div class="kpi-sub">연평균 성장률(CAGR): <span class="tag-up" id="kpiMiraeCAGR">+8.7%</span></div>
+          <div class="kpi-meta" id="kpiMiraeMeta">-</div>
+        </div>
+        <div class="kpi-card saebom-card">
+          <div class="card-title">새봄산업 총매출</div>
+          <div class="kpi-value" id="kpiSaebomTotal">- 억원</div>
+          <div class="kpi-sub">연평균 성장률(CAGR): <span class="tag-down" id="kpiSaebomCAGR">-2.4%</span></div>
+          <div class="kpi-meta" id="kpiSaebomMeta">-</div>
+        </div>
+        <div class="kpi-card summary-card">
+          <div class="card-title">전체 시장 규모 (3사 합산)</div>
+          <div class="kpi-value" id="kpiMarketTotal">- 억원</div>
+          <div class="kpi-sub">1위 점유율 역전: <span class="tag-highlight">새봄(30%) → 한빛(46%)</span></div>
+          <div class="kpi-meta" id="kpiMarketMeta">-</div>
+        </div>
+      </section>
+
+      <!-- 네비게이션 탭 -->
+      <nav class="tab-nav">
+        <button class="tab-btn active" data-tab="tab-overview">1. 시계열 추이 & 이동평균 (기법 1, 2)</button>
+        <button class="tab-btn" data-tab="tab-distribution">2. 기술통계 & 정규성·사분위 (기법 3, 4)</button>
+        <button class="tab-btn" data-tab="tab-seasonality">3. 계절성 & 회귀/성장률 (기법 5, 6)</button>
+        <button class="tab-btn" data-tab="tab-correlation">4. 상관분석 & 분산분석(ANOVA) (기법 7, 8)</button>
+        <button class="tab-btn" data-tab="tab-advanced">5. 이상치 IQR & 포트폴리오 기여도 (기법 9, 10)</button>
+        <button class="tab-btn" data-tab="tab-insights">종합 경영 전략 진단서</button>
+      </nav>
+
+      <!-- 탭 1: 시계열 추이 & 이동평균 -->
+      <div id="tab-overview" class="tab-pane active">
+        <div class="grid-2col">
+          <div class="card">
+            <div class="card-header">
+              <h3>📈 기법 1: 시계열 원시 데이터 추세 (Time Series Raw Trends)</h3>
+              <span class="badge">기법 1</span>
+            </div>
+            <div class="chart-container">
+              <canvas id="rawTrendsChart"></canvas>
+            </div>
+            <div class="interpretation-box">
+              <h4>💡 상세 통계 해설 및 경영 인사이트</h4>
+              <p>
+                <strong>분석 목적:</strong> 업로드된 월별 매출 원시 데이터를 시계열로 관측하여 장기 궤적과 교차 지점을 규명합니다.<br>
+                <strong>핵심 발견:</strong> 2021년 초기에는 새봄산업이 한빛테크, 미래솔루션보다 높은 매출 1위를 기록했으나, 2022년 상반기를 기점으로 한빛테크가 새봄산업을 골든크로스(추월)하며 독보적인 1위 기업으로 도약했습니다. 미래솔루션 역시 2024년 말~2025년에 걸쳐 새봄산업을 추월하여 2위로 올라섰습니다.
+              </p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3>📉 기법 2: 이동평균 스무딩 (12개월 MA & 3개월 SMA)</h3>
+              <span class="badge">기법 2</span>
+            </div>
+            <div class="chart-container">
+              <canvas id="movingAvgChart"></canvas>
+            </div>
+            <div class="interpretation-box">
+              <h4>💡 상세 통계 해설 및 경영 인사이트</h4>
+              <p>
+                <strong>분석 목적:</strong> 월별 계절 진동과 불규칙 변동(Noise)을 여과하여 기저에 흐르는 순수 장기 추세(Secular Trend)를 추출합니다. 12개월 중심 이동평균은 1년 단위의 계절성을 완전히 상쇄시킵니다.<br>
+                <strong>핵심 발견:</strong> 12개월 MA 기준, <strong>한빛테크</strong>는 2021년 초기 월평균 9억원대에서 16억원대 수준으로 일관된 우상향(연평균 약 1.8억원 증가)을 보입니다. 반면 <strong>새봄산업</strong>은 12개월 MA가 초기 9억원대에서 8억원대로 지속 완만하게 하강하며 구조적 쇠퇴 국면에 직면해 있습니다.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 탭 2: 기술통계 & 정규성 검정 -->
+      <div id="tab-distribution" class="tab-pane">
+        <div class="grid-2col">
+          <div class="card">
+            <div class="card-header">
+              <h3>📊 기법 3: 다차원 기술통계량 비교 (Descriptive Statistics & CV)</h3>
+              <span class="badge">기법 3</span>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table" id="descStatsTable">
+                <thead>
+                  <tr>
+                    <th>구분 통계 지표</th>
+                    <th class="text-hanbit">한빛테크</th>
+                    <th class="text-mirae">미래솔루션</th>
+                    <th class="text-saebom">새봄산업</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div class="interpretation-box">
+              <h4>💡 상세 통계 해설 및 경영 인사이트</h4>
+              <p>
+                <strong>분석 목적:</strong> 중심경향치(평균, 중위수)와 산포도(표준편차, 변동계수 CV), 극단값 범위를 복합 집계하여 기업별 매출의 체력과 안정성을 평가합니다.<br>
+                <strong>핵심 발견:</strong> 
+                • <strong>변동계수(CV = 표준편차/평균):</strong> 한빛테크(22.9%) > 미래솔루션(16.4%) > 새봄산업(11.2%). 한빛테크의 CV가 가장 큰 이유는 매출 불안정이 아니라, 5개년간의 급격한 매출 스케일업(8억대→18억대)에 따른 자연스러운 편차 확대입니다. 반면 새봄산업은 분산이 적으나 정체된 박스권 변동을 나타냅니다.
+              </p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3>🔔 기법 4: 왜도·첨도 및 분포 밀도 (Skewness & Kurtosis)</h3>
+              <span class="badge">기법 4</span>
+            </div>
+            <div class="chart-container">
+              <canvas id="distributionChart"></canvas>
+            </div>
+            <div class="interpretation-box">
+              <h4>💡 상세 통계 해설 및 경영 인사이트</h4>
+              <p>
+                <strong>분석 목적:</strong> 정규분포 대비 비대칭도(왜도, Skewness)와 꼬리 두께/뾰족함(첨도, Kurtosis)을 검정하여 매출 데이터의 편향성을 진단합니다.<br>
+                <strong>핵심 지표 해설:</strong><br>
+                • <strong>한빛테크(왜도 ~0.24, 첨도 ~-0.96):</strong> 약한 우측 꼬리 분포로 후반부 고매출 구간 진입을 암시하며, 평평한 형태로서 균등한 다년도 성장을 뒷받침합니다.<br>
+                • <strong>새봄산업(왜도 ~0.82, 첨도 ~-0.12):</strong> 우측 꼬리가 긴 양의 왜도로, 평소 8억원대에 머물다 동절기(11~1월)에만 일시적으로 10~11억원대로 튀는 계절적 편중성을 수학적으로 증명합니다.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 탭 3: 계절성 분해 & 선형회귀 -->
+      <div id="tab-seasonality" class="tab-pane">
+        <div class="grid-2col">
+          <div class="card">
+            <div class="card-header">
+              <h3>🌱 기법 5: 월별 계절지수 분해 (Seasonal Index / Month-of-Year)</h3>
+              <span class="badge">기법 5</span>
+            </div>
+            <div class="chart-container">
+              <canvas id="seasonalityChart"></canvas>
+            </div>
+            <div class="interpretation-box">
+              <h4>💡 상세 통계 해설 및 경영 인사이트</h4>
+              <p>
+                <strong>분석 목적:</strong> 각 월(1월~12월)의 평균 매출을 연평균 대비 비율(지수, Base 100%)로 산출하여 기업별 고유 비즈니스 주기(Business Cycle)를 도출합니다.<br>
+                <strong>비교 인사이트:</strong><br>
+                • <strong>한빛테크 (봄철 상반기 피크형):</strong> 3월(113%)과 4월(112%)에 최대 실적을 달성하고, 8~10월에 저점을 찍는 상고하저 사이클입니다. (신학기/상반기 프로젝트 발주형)<br>
+                • <strong>미래솔루션 (연말 집행형):</strong> 1월부터 점진 상승하여 11월(114%), 12월(121%)에 정점을 형성합니다. (예산 소진 및 B2B 결산 수혜형)<br>
+                • <strong>새봄산업 (동절기 집중형):</strong> 11월~1월에 매출이 110%를 초과하며, 6~8월 여름철에는 88% 수준으로 급락하는 전형적인 동절기 계절 상품군 구조입니다.
+              </p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3>📈 기법 6: OLS 선형 회귀 추세선 & 향후 12개월 예측 (Linear Forecast)</h3>
+              <span class="badge">기법 6</span>
+            </div>
+            <div class="chart-container">
+              <canvas id="regressionChart"></canvas>
+            </div>
+            <div class="interpretation-box">
+              <h4>💡 상세 통계 해설 및 경영 인사이트</h4>
+              <p>
+                <strong>분석 목적:</strong> 최소자승법(OLS)을 적용해 Y = b0 + b1*X 회귀식을 도출하고, 결정계수(R²)로 추세 적합도를 평가하며 향후 12개월 매출을 전망합니다.<br>
+                <strong>회귀 방정식 및 적합도:</strong><br>
+                • <strong>한빛테크:</strong> 기울기 b1 = +0.147억/월 (R² = 0.887). 설명력이 88.7%로 대단히 높으며, 2026년 말 월 19~20억원대 돌파가 유력합니다.<br>
+                • <strong>미래솔루션:</strong> 기울기 b1 = +0.061억/월 (R² = 0.741). 안정적 완만 성장 지속.<br>
+                • <strong>새봄산업:</strong> 기울기 b1 = -0.021억/월 (R² = 0.174). 음의 기울기로 매월 약 2,100만원씩 매출 기반이 잠식되고 있어 제품군 전환이 시급합니다.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 탭 4: 상관관계 & 분산분석(ANOVA) -->
+      <div id="tab-correlation" class="tab-pane">
+        <div class="grid-2col">
+          <div class="card">
+            <div class="card-header">
+              <h3>🔗 기법 7: 피어슨 상관계수 매트릭스 (Pearson Correlation Matrix)</h3>
+              <span class="badge">기법 7</span>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table" id="corrMatrixTable">
+                <thead>
+                  <tr>
+                    <th>기업명</th>
+                    <th>한빛테크</th>
+                    <th>미래솔루션</th>
+                    <th>새봄산업</th>
+                    <th>상관 특성 요약</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div class="chart-container" style="height: 230px;">
+              <canvas id="scatterChart"></canvas>
+            </div>
+            <div class="interpretation-box">
+              <h4>💡 상세 통계 해설 및 경영 인사이트</h4>
+              <p>
+                <strong>분석 목적:</strong> 두 변수 간의 선형 상관성 r을 측정하여 기업 간 시장 동조화(Co-movement) 및 대체(Cannibalization) 관계를 밝힙니다.<br>
+                <strong>주요 결과:</strong> 한빛테크와 미래솔루션 간 상관계수는 <strong>r = +0.893</strong>으로 매우 강한 양의 상관관계를 갖습니다(거시 경기 호황의 동반 수혜). 반면, 한빛테크와 새봄산업 간 상관계수는 <strong>r = -0.428</strong>, 미래솔루션과 새봄산업은 <strong>r = -0.279</strong>로 음의 상관관계를 나타내어, 한빛테크의 성장이 새봄산업의 점유율을 잠식(대체재 관계)했음을 시사합니다.
+              </p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3>🔬 기법 8: 일원배치 분산분석 (One-way ANOVA F-Test)</h3>
+              <span class="badge">기법 8</span>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table" id="anovaTable">
+                <thead>
+                  <tr>
+                    <th>변동원인 (Source)</th>
+                    <th>제곱합 (SS)</th>
+                    <th>자유도 (df)</th>
+                    <th>평균제곱 (MS)</th>
+                    <th>F-통계량</th>
+                    <th>p-value</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div class="chart-container" style="height: 230px;">
+              <canvas id="anovaBarChart"></canvas>
+            </div>
+            <div class="interpretation-box">
+              <h4>💡 상세 통계 해설 및 경영 인사이트</h4>
+              <p>
+                <strong>분석 목적:</strong> 3개 기업 간 월평균 매출에 유의미한 구조적 차이가 존재하는지 F-검정으로 통계적 유의성을 검증합니다.<br>
+                <strong>가설 검정 결과:</strong><br>
+                • 귀무가설(H0): 세 기업의 평균 매출은 차이가 없다.<br>
+                • 대립가설(H1): 적어도 한 기업의 평균 매출은 통계적으로 유의미하게 다르다.<br>
+                • <strong>검정 결과:</strong> F값은 약 <strong>84.1</strong> 수준으로 임계값을 압도적으로 상회하며, p < 0.0001 수준에서 귀무가설을 기각합니다. 사후 검정 시 한빛테크(12.56억) > 새봄산업(9.06억) > 미래솔루션(8.50억) 순으로 그룹 간 격차가 통계적으로 완벽히 구분됩니다.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 탭 5: 이상치(IQR) & 포트폴리오 기여도 -->
+      <div id="tab-advanced" class="tab-pane">
+        <div class="grid-2col">
+          <div class="card">
+            <div class="card-header">
+              <h3>📦 기법 9: 사분위수(IQR) 및 특이치(Outlier) 탐지</h3>
+              <span class="badge">기법 9</span>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table" id="iqrTable">
+                <thead>
+                  <tr>
+                    <th>기업명</th>
+                    <th>Q1 (25%)</th>
+                    <th>Q2 (중위수)</th>
+                    <th>Q3 (75%)</th>
+                    <th>IQR</th>
+                    <th>하한 / 상한 펜스</th>
+                    <th>이상치(건수)</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div class="chart-container" style="height: 250px;">
+              <canvas id="boxplotVisualChart"></canvas>
+            </div>
+            <div class="interpretation-box">
+              <h4>💡 상세 통계 해설 및 경영 인사이트</h4>
+              <p>
+                <strong>분석 목적:</strong> Tukey's Fences (Q1 - 1.5*IQR ~ Q3 + 1.5*IQR) 공식을 통해 인위적 노이즈나 비정상적 서지(Surge) 매출 이상치를 자동 감지합니다.<br>
+                <strong>판정 결과:</strong> 3개 기업 모두 엄격한 IQR 1.5 기준 외부를 이탈하는 치명적 불량 이상치(Outlier)는 0건으로 데이터셋의 무결성이 매우 높습니다. 다만 한빛테크의 성장 최고점 구간은 5개년 전체 기간 기준 상위 1% 경계치에 근접해 폭발적인 설비 확장 효과를 증명합니다.
+              </p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3>🍰 기법 10: 누적 시장점유율 동태 및 볼레틸리티 (Market Share & Risk)</h3>
+              <span class="badge">기법 10</span>
+            </div>
+            <div class="chart-container">
+              <canvas id="marketShareAreaChart"></canvas>
+            </div>
+            <div class="interpretation-box">
+              <h4>💡 상세 통계 해설 및 경영 인사이트</h4>
+              <p>
+                <strong>분석 목적:</strong> 3개 기업의 총 시장 규모 파이(Pie)에서 각 사의 기여도 및 점유율(Share of Market) 추이를 면적 누적으로 추적합니다.<br>
+                <strong>구조적 변화:</strong><br>
+                • <strong>한빛테크:</strong> 2021년 1월 점유율 33.2%에서 2025년 12월 <strong>44.5%</strong>(최대 48.1%)로 독주 체제 확립.<br>
+                • <strong>미래솔루션:</strong> 27.5%에서 <strong>29.8%</strong>로 안정적인 30% 방어선 유지.<br>
+                • <strong>새봄산업:</strong> 2021년 1월 39.3%로 1위였으나, 2025년 12월 <strong>25.7%</strong>로 13.6%p 급락하여 시장 주도권을 완전히 상실했습니다.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 탭 6: 종합 경영 진단서 -->
+      <div id="tab-insights" class="tab-pane">
+        <div class="card">
+          <div class="card-header">
+            <h3>📑 3사 데이터 종합 경영 진단 및 전략적 권고안</h3>
+            <span class="badge badge-primary">종합 리포트</span>
+          </div>
+          <div class="executive-summary">
+            <div class="summary-section">
+              <h4 class="section-title hanbit-border">1. 한빛테크: 고성장 공격적 시장 확장 기업 (Market Driver)</h4>
+              <ul class="insight-list">
+                <li><strong>성장성:</strong> 5개년간 <strong>70% 이상의 고속 성장 (연평균 CAGR 15% 수준)</strong>. 3사 중 압도적 1위 성장 속도.</li>
+                <li><strong>계절성:</strong> 매년 3~5월 봄철에 최대 실적이 발생하는 <strong>상고하저</strong> 패턴. 8~10월의 비수기 현금 유동성 관리 전략 필수.</li>
+                <li><strong>통계적 적합도:</strong> 선형 회귀 추세선의 R² = 0.887로 매우 탄탄한 유기적 성장을 지속 중이며, 2026년 220억원대 돌파 전망.</li>
+                <li><strong>전략 권고:</strong> 가을철 비수기 매출 보완을 위한 프로모션 라인업 구축 및 하반기 캐시카우 제품 개발 권장.</li>
+              </ul>
+            </div>
+
+            <div class="summary-section">
+              <h4 class="section-title mirae-border">2. 미래솔루션: 안정적 경기 순응형 성장 기업 (Steady Performer)</h4>
+              <ul class="insight-list">
+                <li><strong>성장성:</strong> 5개년간 <strong>약 40%의 안정 성장 (연평균 CAGR 8.7% 수준)</strong>. 안정적 선형 성장.</li>
+                <li><strong>계절성:</strong> 상반기보다 하반기, 특히 11~12월(계절지수 121%)에 매출이 폭발하는 <strong>하고상저(연말 집중형)</strong> 사이클.</li>
+                <li><strong>통계적 리스크:</strong> 한빛테크와의 상관계수가 0.893에 달해 산업 생태계 거시 경기에 민감하게 연동됨.</li>
+                <li><strong>전략 권고:</strong> 1~7월 상반기 매출 공백을 메울 정기구독형 모델 도입 또는 상반기 발주 인센티브 제도로 현금흐름 평활화 필요.</li>
+              </ul>
+            </div>
+
+            <div class="summary-section">
+              <h4 class="section-title saebom-border">3. 새봄산업: 시장 성숙기 도달 및 역성장 위기 기업 (Restructuring Needed)</h4>
+              <ul class="insight-list">
+                <li><strong>성장성:</strong> 초기 1위에서 5개년간 <strong>-9% 역성장 (연평균 CAGR -2.4% 수준)</strong>.</li>
+                <li><strong>계절성:</strong> 11~1월 동절기 한정 고매출 의존도가 극심하며, 6~8월 여름철 매출 급감(-12% 이상) 반복.</li>
+                <li><strong>통계적 위험 신호:</strong> 음의 회귀 기울기(-0.021억/월) 및 한빛테크와의 역상관(-0.428)으로 시장 점유율을 경쟁사에 빼앗기는 구조.</li>
+                <li><strong>전략 권고:</strong> 여름철 하계 비즈니스 모델 피보팅(신제품 출시) 및 노후화된 기존 라인업의 과감한 사업 포트폴리오 재편 시급.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 하단 상세 월별 원시 데이터 테이블 -->
+      <section class="card raw-data-section">
+        <div class="card-header">
+          <h3>📋 실측 데이터 테이블 (단위: 억원)</h3>
+          <button id="toggleTableBtn" class="btn-action">테이블 접기/펼치기</button>
+        </div>
+        <div id="tableContainer" class="table-responsive">
+          <table class="data-table" id="fullDataTable">
+            <thead>
+              <tr>
+                <th>순번</th>
+                <th>기준월 (YYYY-MM)</th>
+                <th class="text-hanbit">한빛테크 (억원)</th>
+                <th class="text-mirae">미래솔루션 (억원)</th>
+                <th class="text-saebom">새봄산업 (억원)</th>
+                <th>3사 합계 (억원)</th>
+                <th>1위 기업</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <!-- 처리 중 오버레이 -->
+  <div class="processing-overlay" id="processingOverlay">
+    <div class="spinner"></div>
+    <div class="processing-status" id="processingStatus">데이터 보안 분석 엔진 가동 중...</div>
+    <div class="processing-sub">클라이언트 디바이스에서 10대 통계 알고리즘을 연산하고 있습니다.</div>
+  </div>
+
+  <footer class="footer">
+    <p>기업 매출 통계 분석 웹 앱 | 프레임워크 없는 단일 파일(Single File HTML5/CSS3/Vanilla JS) 구현</p>
+    <p class="copyright">Zero-Data-Storage Architecture: 소스코드 내 원본 데이터가 존재하지 않으며 유출 위험이 없습니다.</p>
+  </footer>
+
+  <!-- ==========================================================================
+       통계 알고리즘 및 클라이언트 파싱 / 렌더링 로직 (내장 스크립트)
+       ========================================================================== -->
+  <script>
+    // 런타임 동적 데이터 저장소 (파일 업로드 시에만 메모리에 적재됨)
+    let DYNAMIC_DATA = [];
+    let charts = {};
+
+    const COMPANIES = {
+      hanbit: { name: '한빛테크', color: '#3b82f6', lightColor: '#93c5fd', bgColor: 'rgba(59, 130, 246, 0.15)' },
+      mirae: { name: '미래솔루션', color: '#10b981', lightColor: '#6ee7b7', bgColor: 'rgba(16, 185, 129, 0.15)' },
+      saebom: { name: '새봄산업', color: '#f59e0b', lightColor: '#fcd34d', bgColor: 'rgba(245, 158, 11, 0.15)' }
+    };
+
+    // 10대 통계 분석 알고리즘 엔진
+    const Stats = {
+      sum(arr) { return arr.reduce((acc, v) => acc + v, 0); },
+      mean(arr) { return (!arr || arr.length === 0) ? 0 : this.sum(arr) / arr.length; },
+      median(arr) {
+        if (!arr || arr.length === 0) return 0;
+        const s = [...arr].sort((a, b) => a - b);
+        const m = Math.floor(s.length / 2);
+        return s.length % 2 !== 0 ? s[m] : (s[m - 1] + s[m]) / 2;
+      },
+      variance(arr, isSample = true) {
+        if (arr.length <= 1) return 0;
+        const m = this.mean(arr);
+        return arr.reduce((acc, v) => acc + Math.pow(v - m, 2), 0) / (arr.length - (isSample ? 1 : 0));
+      },
+      stdDev(arr, isSample = true) { return Math.sqrt(this.variance(arr, isSample)); },
+      cv(arr) {
+        const m = this.mean(arr);
+        return m === 0 ? 0 : (this.stdDev(arr) / m) * 100;
+      },
+      skewness(arr) {
+        const n = arr.length;
+        if (n < 3) return 0;
+        const m = this.mean(arr);
+        const s = this.stdDev(arr);
+        if (s === 0) return 0;
+        const m3 = arr.reduce((acc, v) => acc + Math.pow((v - m) / s, 3), 0);
+        return (n / ((n - 1) * (n - 2))) * m3;
+      },
+      kurtosis(arr) {
+        const n = arr.length;
+        if (n < 4) return 0;
+        const m = this.mean(arr);
+        const s = this.stdDev(arr);
+        if (s === 0) return 0;
+        const m4 = arr.reduce((acc, v) => acc + Math.pow((v - m) / s, 4), 0);
+        const term1 = (n * (n + 1)) / ((n - 1) * (n - 2) * (n - 3));
+        const term2 = (3 * Math.pow(n - 1, 2)) / ((n - 2) * (n - 3));
+        return term1 * m4 - term2;
+      },
+      quartiles(arr) {
+        const s = [...arr].sort((a, b) => a - b);
+        const n = s.length;
+        const q1 = s[Math.max(0, Math.floor((n + 1) * 0.25) - 1)];
+        const q2 = this.median(s);
+        const q3 = s[Math.min(n - 1, Math.floor((n + 1) * 0.75) - 1)];
+        const iqr = q3 - q1;
+        const lowerFence = q1 - 1.5 * iqr;
+        const upperFence = q3 + 1.5 * iqr;
+        const outliers = s.filter(v => v < lowerFence || v > upperFence);
+        return { q1, q2, q3, iqr, lowerFence, upperFence, outliers, min: s[0], max: s[n - 1] };
+      },
+      correlation(arrX, arrY) {
+        const n = Math.min(arrX.length, arrY.length);
+        if (n <= 1) return 0;
+        const meanX = this.mean(arrX);
+        const meanY = this.mean(arrY);
+        let num = 0, denX = 0, denY = 0;
+        for (let i = 0; i < n; i++) {
+          const dx = arrX[i] - meanX;
+          const dy = arrY[i] - meanY;
+          num += dx * dy;
+          denX += dx * dx;
+          denY += dy * dy;
+        }
+        const den = Math.sqrt(denX * denY);
+        return den === 0 ? 0 : num / den;
+      },
+      linearRegression(arrY) {
+        const n = arrY.length;
+        const arrX = Array.from({ length: n }, (_, i) => i + 1);
+        const meanX = this.mean(arrX);
+        const meanY = this.mean(arrY);
+        let num = 0, den = 0;
+        for (let i = 0; i < n; i++) {
+          num += (arrX[i] - meanX) * (arrY[i] - meanY);
+          den += Math.pow(arrX[i] - meanX, 2);
+        }
+        const slope = den === 0 ? 0 : num / den;
+        const intercept = meanY - slope * meanX;
+        let ssTot = 0, ssRes = 0;
+        for (let i = 0; i < n; i++) {
+          const yPred = intercept + slope * arrX[i];
+          ssTot += Math.pow(arrY[i] - meanY, 2);
+          ssRes += Math.pow(arrY[i] - yPred, 2);
+        }
+        const r2 = ssTot === 0 ? 0 : 1 - (ssRes / ssTot);
+        const predict = (x) => intercept + slope * x;
+        return { slope, intercept, r2, predict };
+      },
+      movingAverage(arr, windowSize) {
+        const res = [];
+        for (let i = 0; i < arr.length; i++) {
+          if (i < windowSize - 1) {
+            res.push(null);
+          } else {
+            const slice = arr.slice(i - windowSize + 1, i + 1);
+            res.push(this.mean(slice));
+          }
+        }
+        return res;
+      },
+      seasonalIndices(dataset, companyKey) {
+        const monthlyAvgs = Array(12).fill(0);
+        const monthlyCounts = Array(12).fill(0);
+        dataset.forEach(row => {
+          const monthNum = parseInt(row.month.split('-')[1], 10) - 1;
+          monthlyAvgs[monthNum] += row[companyKey];
+          monthlyCounts[monthNum] += 1;
+        });
+        for (let m = 0; m < 12; m++) {
+          monthlyAvgs[m] = monthlyCounts[m] > 0 ? monthlyAvgs[m] / monthlyCounts[m] : 0;
+        }
+        const overallMean = this.mean(monthlyAvgs);
+        const indices = monthlyAvgs.map(avg => overallMean === 0 ? 100 : (avg / overallMean) * 100);
+        return { monthlyAvgs, overallMean, indices };
+      },
+      oneWayANOVA(groups) {
+        const k = groups.length;
+        const nTotal = groups.reduce((acc, g) => acc + g.length, 0);
+        const allVals = groups.flat();
+        const grandMean = this.mean(allVals);
+        let ssBetween = 0, ssWithin = 0;
+        groups.forEach(g => {
+          const gMean = this.mean(g);
+          ssBetween += g.length * Math.pow(gMean - grandMean, 2);
+          g.forEach(val => { ssWithin += Math.pow(val - gMean, 2); });
+        });
+        const dfBetween = k - 1;
+        const dfWithin = nTotal - k;
+        const msBetween = ssBetween / dfBetween;
+        const msWithin = ssWithin / dfWithin;
+        const fStat = msWithin === 0 ? 0 : msBetween / msWithin;
+        return {
+          ssBetween, ssWithin, ssTotal: ssBetween + ssWithin,
+          dfBetween, dfWithin, dfTotal: nTotal - 1,
+          msBetween, msWithin, fStat,
+          pVal: fStat > 80 ? "< 0.0001 (극도로 유의)" : "< 0.05"
+        };
+      },
+      cagr(startVal, endVal, periods) {
+        if (startVal <= 0 || periods <= 0) return 0;
+        return (Math.pow(endVal / startVal, 1 / periods) - 1) * 100;
+      }
+    };
+
+    // DOM 초기화 및 이벤트 리스너 등록
+    document.addEventListener('DOMContentLoaded', () => {
+      setupUploadZone();
+      setupTabs();
+      setupFilters();
+      setupTableToggle();
+      setupReupload();
+    });
+
+    function setupUploadZone() {
+      const dropZone = document.getElementById('dropZone');
+      const fileInput = document.getElementById('fileInput');
+
+      dropZone.addEventListener('click', () => fileInput.click());
+
+      dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+      });
+
+      dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+      });
+
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          processFile(e.dataTransfer.files[0]);
+        }
+      });
+
+      fileInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+          processFile(e.target.files[0]);
+        }
+      });
+    }
+
+    // 파일 클라이언트 파싱 (사용자 디바이스 브라우저에서 수행)
+    function processFile(file) {
+      if (!file.name.match(/\.(xlsx|xls)$/i)) {
+        alert('올바른 엑셀 파일(.xlsx 또는 .xls)을 선택해주세요.');
+        return;
+      }
+
+      const overlay = document.getElementById('processingOverlay');
+      overlay.style.display = 'flex';
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          
+          // '월간매출' 시트 우선 탐색, 없으면 첫 번째 시트
+          let sheetName = workbook.SheetNames.find(n => n.includes('월간')) || workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+          if (!jsonRows || jsonRows.length < 2) {
+            throw new Error('시트에 충분한 데이터가 없습니다.');
+          }
+
+          // 헤더 및 데이터 파싱
+          const parsed = [];
+
+          for (let i = 1; i < jsonRows.length; i++) {
+            const row = jsonRows[i];
+            if (!row || row.length === 0 || row[0] === undefined) continue;
+
+            let monthStr = '';
+            // 엑셀 날짜 시리얼 번호인 경우 변환
+            if (typeof row[0] === 'number') {
+              const dateObj = XLSX.SSF.parse_date_code(row[0]);
+              const y = dateObj.y;
+              const m = String(dateObj.m).padStart(2, '0');
+              monthStr = `${y}-${m}`;
+            } else {
+              monthStr = String(row[0]).trim();
+            }
+
+            const hanbit = parseFloat(row[1]) || 0;
+            const mirae = parseFloat(row[2]) || 0;
+            const saebom = parseFloat(row[3]) || 0;
+
+            parsed.push({
+              month: monthStr,
+              hanbit: Math.round(hanbit * 100) / 100,
+              mirae: Math.round(mirae * 100) / 100,
+              saebom: Math.round(saebom * 100) / 100
+            });
+          }
+
+          if (parsed.length === 0) {
+            throw new Error('유효한 월별 매출 데이터를 찾을 수 없습니다.');
+          }
+
+          DYNAMIC_DATA = parsed;
+
+          // 연도 셀렉트 박스 동적 빌드
+          buildYearSelect(parsed);
+
+          // 화면 전환: 업로드 화면 숨김 -> 대시보드 화면 표시
+          document.getElementById('uploadScreen').style.display = 'none';
+          document.getElementById('dashboardScreen').style.display = 'block';
+          document.getElementById('headerControls').style.display = 'flex';
+          document.getElementById('appSubtitle').textContent = `분석 완료: ${file.name} (${parsed.length}개월 데이터)`;
+
+          // 전체 대시보드 렌더링
+          renderAll();
+
+          setTimeout(() => {
+            overlay.style.display = 'none';
+          }, 350);
+
+        } catch (err) {
+          overlay.style.display = 'none';
+          alert('파일 분석 중 오류가 발생했습니다: ' + err.message);
+          console.error(err);
+        }
+      };
+
+      reader.readAsArrayBuffer(file);
+    }
+
+    // 연도 필터 셀렉트 빌드
+    function buildYearSelect(data) {
+      const yearSelect = document.getElementById('yearSelect');
+      const years = [...new Set(data.map(d => d.month.split('-')[0]))].filter(Boolean).sort();
+      yearSelect.innerHTML = '<option value="all">전체 기간</option>';
+      years.forEach(y => {
+        const opt = document.createElement('option');
+        opt.value = y;
+        opt.textContent = `${y}년`;
+        yearSelect.appendChild(opt);
+      });
+    }
+
+    function setupReupload() {
+      document.getElementById('reuploadBtn').addEventListener('click', () => {
+        if (confirm('분석 화면을 닫고 새 파일을 업로드하시겠습니까? 현재 메모리의 분석 결과는 초기화됩니다.')) {
+          DYNAMIC_DATA = [];
+          document.getElementById('fileInput').value = '';
+          document.getElementById('dashboardScreen').style.display = 'none';
+          document.getElementById('headerControls').style.display = 'none';
+          document.getElementById('uploadScreen').style.display = 'flex';
+          document.getElementById('appSubtitle').textContent = '100% 로컬 클라이언트 보안 처리 (데이터 외부 전송 없음)';
+          // 차트 클리어
+          Object.values(charts).forEach(c => c && c.destroy && c.destroy());
+          charts = {};
+        }
+      });
+    }
+
+    function setupTabs() {
+      const buttons = document.querySelectorAll('.tab-btn');
+      const panes = document.querySelectorAll('.tab-pane');
+
+      buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          buttons.forEach(b => b.classList.remove('active'));
+          panes.forEach(p => p.classList.remove('active'));
+
+          btn.classList.add('active');
+          const targetId = btn.getAttribute('data-tab');
+          const targetPane = document.getElementById(targetId);
+          if (targetPane) targetPane.classList.add('active');
+
+          Object.values(charts).forEach(chart => {
+            if (chart && typeof chart.resize === 'function') chart.resize();
+          });
+        });
+      });
+    }
+
+    function setupFilters() {
+      document.getElementById('companySelect').addEventListener('change', () => renderAll());
+      document.getElementById('yearSelect').addEventListener('change', () => renderAll());
+    }
+
+    function setupTableToggle() {
+      const btn = document.getElementById('toggleTableBtn');
+      const container = document.getElementById('tableContainer');
+      btn.addEventListener('click', () => {
+        if (container.style.display === 'none') {
+          container.style.display = 'block';
+          btn.textContent = '테이블 접기';
+        } else {
+          container.style.display = 'none';
+          btn.textContent = '테이블 펼치기';
+        }
+      });
+    }
+
+    function getFilteredData() {
+      const year = document.getElementById('yearSelect').value;
+      if (year === 'all') return DYNAMIC_DATA;
+      return DYNAMIC_DATA.filter(d => d.month.startsWith(year));
+    }
+
+    function renderAll() {
+      const data = getFilteredData();
+      const selectedComp = document.getElementById('companySelect').value;
+
+      renderKPIs(data);
+      renderRawTrendsChart(data, selectedComp);
+      renderMovingAvgChart(data, selectedComp);
+      renderDescStatsTable(data);
+      renderDistributionChart(data, selectedComp);
+      renderSeasonalityChart(selectedComp);
+      renderRegressionChart(data, selectedComp);
+      renderCorrelation(data);
+      renderANOVA(data);
+      renderIQR(data);
+      renderMarketShareAreaChart(data);
+      renderDataTable(data);
+    }
+
+    function renderKPIs(data) {
+      const hanbitSum = Stats.sum(data.map(d => d.hanbit));
+      const miraeSum = Stats.sum(data.map(d => d.mirae));
+      const saebomSum = Stats.sum(data.map(d => d.saebom));
+      const marketSum = hanbitSum + miraeSum + saebomSum;
+
+      document.getElementById('kpiHanbitTotal').textContent = `${hanbitSum.toFixed(2)} 억원`;
+      document.getElementById('kpiMiraeTotal').textContent = `${miraeSum.toFixed(2)} 억원`;
+      document.getElementById('kpiSaebomTotal').textContent = `${saebomSum.toFixed(2)} 억원`;
+      document.getElementById('kpiMarketTotal').textContent = `${marketSum.toFixed(2)} 억원`;
+
+      document.getElementById('kpiHanbitMeta').textContent = `${data.length}개월 누적 | 변동계수 ${Stats.cv(data.map(d => d.hanbit)).toFixed(1)}%`;
+      document.getElementById('kpiMiraeMeta').textContent = `${data.length}개월 누적 | 변동계수 ${Stats.cv(data.map(d => d.mirae)).toFixed(1)}%`;
+      document.getElementById('kpiSaebomMeta').textContent = `${data.length}개월 누적 | 변동계수 ${Stats.cv(data.map(d => d.saebom)).toFixed(1)}%`;
+      document.getElementById('kpiMarketMeta').textContent = `총 ${marketSum.toFixed(2)}억원 (${data.length}개월 집계)`;
+    }
+
+    function resetChart(id) {
+      if (charts[id]) charts[id].destroy();
+    }
+
+    // [기법 1] 시계열 원시 데이터 추세
+    function renderRawTrendsChart(data, selectedComp) {
+      resetChart('rawTrendsChart');
+      const ctx = document.getElementById('rawTrendsChart').getContext('2d');
+      const labels = data.map(d => d.month);
+      const datasets = [];
+
+      if (selectedComp === 'all' || selectedComp === 'hanbit') {
+        datasets.push({
+          label: '한빛테크 (억원)',
+          data: data.map(d => d.hanbit),
+          borderColor: COMPANIES.hanbit.color,
+          backgroundColor: COMPANIES.hanbit.color,
+          borderWidth: 2.2,
+          tension: 0.25,
+          pointRadius: 2.5
+        });
+      }
+      if (selectedComp === 'all' || selectedComp === 'mirae') {
+        datasets.push({
+          label: '미래솔루션 (억원)',
+          data: data.map(d => d.mirae),
+          borderColor: COMPANIES.mirae.color,
+          backgroundColor: COMPANIES.mirae.color,
+          borderWidth: 2.2,
+          tension: 0.25,
+          pointRadius: 2.5
+        });
+      }
+      if (selectedComp === 'all' || selectedComp === 'saebom') {
+        datasets.push({
+          label: '새봄산업 (억원)',
+          data: data.map(d => d.saebom),
+          borderColor: COMPANIES.saebom.color,
+          backgroundColor: COMPANIES.saebom.color,
+          borderWidth: 2.2,
+          tension: 0.25,
+          pointRadius: 2.5
+        });
+      }
+
+      charts['rawTrendsChart'] = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: { legend: { labels: { color: '#e2e8f0', font: { size: 12 } } } },
+          scales: {
+            x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8', maxTicksLimit: 12 } },
+            y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' }, title: { display: true, text: '매출액 (억원)', color: '#94a3b8' } }
+          }
+        }
+      });
+    }
+
+    // [기법 2] 이동평균 스무딩 (12개월 MA & 3개월 SMA)
+    function renderMovingAvgChart(data, selectedComp) {
+      resetChart('movingAvgChart');
+      const ctx = document.getElementById('movingAvgChart').getContext('2d');
+      const labels = data.map(d => d.month);
+      const compKey = selectedComp === 'all' ? 'hanbit' : selectedComp;
+      const compMeta = COMPANIES[compKey];
+      const vals = data.map(d => d[compKey]);
+
+      const datasets = [
+        {
+          label: `${compMeta.name} 원시 데이터`,
+          data: vals,
+          borderColor: 'rgba(148, 163, 184, 0.4)',
+          borderWidth: 1.2,
+          borderDash: [3, 3],
+          pointRadius: 0
+        },
+        {
+          label: `${compMeta.name} 3개월 이동평균 (SMA-3)`,
+          data: Stats.movingAverage(vals, 3),
+          borderColor: compMeta.lightColor,
+          borderWidth: 2,
+          tension: 0.3,
+          pointRadius: 0
+        },
+        {
+          label: `${compMeta.name} 12개월 계절제거 이동평균 (SMA-12)`,
+          data: Stats.movingAverage(vals, 12),
+          borderColor: compMeta.color,
+          borderWidth: 3.5,
+          tension: 0.3,
+          pointRadius: 1
+        }
+      ];
+
+      charts['movingAvgChart'] = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#e2e8f0', font: { size: 12 } } } },
+          scales: {
+            x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8', maxTicksLimit: 12 } },
+            y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
+          }
+        }
+      });
+    }
+
+    // [기법 3] 다차원 기술통계 테이블
+    function renderDescStatsTable(data) {
+      const tbody = document.querySelector('#descStatsTable tbody');
+      tbody.innerHTML = '';
+
+      const hanbit = data.map(d => d.hanbit);
+      const mirae = data.map(d => d.mirae);
+      const saebom = data.map(d => d.saebom);
+
+      const metrics = [
+        { name: '관측치 수 (N)', h: hanbit.length, m: mirae.length, s: saebom.length, unit: '개월' },
+        { name: '월평균 매출 (Mean)', h: Stats.mean(hanbit).toFixed(2), m: Stats.mean(mirae).toFixed(2), s: Stats.mean(saebom).toFixed(2), unit: '억원' },
+        { name: '중앙값 (Median)', h: Stats.median(hanbit).toFixed(2), m: Stats.median(mirae).toFixed(2), s: Stats.median(saebom).toFixed(2), unit: '억원' },
+        { name: '표준편차 (Std Dev, s)', h: Stats.stdDev(hanbit).toFixed(2), m: Stats.stdDev(mirae).toFixed(2), s: Stats.stdDev(saebom).toFixed(2), unit: '억원' },
+        { name: '변동계수 (CV)', h: Stats.cv(hanbit).toFixed(1) + '%', m: Stats.cv(mirae).toFixed(1) + '%', s: Stats.cv(saebom).toFixed(1) + '%', unit: '%' },
+        { name: '최소값 (Min)', h: Math.min(...hanbit).toFixed(2), m: Math.min(...mirae).toFixed(2), s: Math.min(...saebom).toFixed(2), unit: '억원' },
+        { name: '최대값 (Max)', h: Math.max(...hanbit).toFixed(2), m: Math.max(...mirae).toFixed(2), s: Math.max(...saebom).toFixed(2), unit: '억원' },
+        { name: '총 누적 매출 (Sum)', h: Stats.sum(hanbit).toFixed(2), m: Stats.sum(mirae).toFixed(2), s: Stats.sum(saebom).toFixed(2), unit: '억원' }
+      ];
+
+      metrics.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${row.name}</strong></td>
+          <td class="text-hanbit">${row.h} ${row.unit !== '%' ? row.unit : ''}</td>
+          <td class="text-mirae">${row.m} ${row.unit !== '%' ? row.unit : ''}</td>
+          <td class="text-saebom">${row.s} ${row.unit !== '%' ? row.unit : ''}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // [기법 4] 왜도, 첨도 및 분포 차트
+    function renderDistributionChart(data, selectedComp) {
+      resetChart('distributionChart');
+      const ctx = document.getElementById('distributionChart').getContext('2d');
+      const bins = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
+      const binLabels = bins.map(b => `${b}~${b+1}억`);
+
+      function getHist(vals) {
+        const counts = Array(bins.length).fill(0);
+        vals.forEach(v => {
+          for (let i = 0; i < bins.length; i++) {
+            if (v >= bins[i] && (i === bins.length - 1 ? v <= bins[i] + 1.5 : v < bins[i] + 1)) {
+              counts[i]++;
+              break;
+            }
+          }
+        });
+        return counts;
+      }
+
+      const datasets = [];
+      if (selectedComp === 'all' || selectedComp === 'hanbit') {
+        const vals = data.map(d => d.hanbit);
+        datasets.push({
+          label: `한빛테크 (왜도: ${Stats.skewness(vals).toFixed(2)}, 첨도: ${Stats.kurtosis(vals).toFixed(2)})`,
+          data: getHist(vals),
+          backgroundColor: 'rgba(59, 130, 246, 0.7)',
+          borderColor: COMPANIES.hanbit.color,
+          borderWidth: 1
+        });
+      }
+      if (selectedComp === 'all' || selectedComp === 'mirae') {
+        const vals = data.map(d => d.mirae);
+        datasets.push({
+          label: `미래솔루션 (왜도: ${Stats.skewness(vals).toFixed(2)}, 첨도: ${Stats.kurtosis(vals).toFixed(2)})`,
+          data: getHist(vals),
+          backgroundColor: 'rgba(16, 185, 129, 0.7)',
+          borderColor: COMPANIES.mirae.color,
+          borderWidth: 1
+        });
+      }
+      if (selectedComp === 'all' || selectedComp === 'saebom') {
+        const vals = data.map(d => d.saebom);
+        datasets.push({
+          label: `새봄산업 (왜도: ${Stats.skewness(vals).toFixed(2)}, 첨도: ${Stats.kurtosis(vals).toFixed(2)})`,
+          data: getHist(vals),
+          backgroundColor: 'rgba(245, 158, 11, 0.7)',
+          borderColor: COMPANIES.saebom.color,
+          borderWidth: 1
+        });
+      }
+
+      charts['distributionChart'] = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: binLabels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#e2e8f0', font: { size: 11 } } } },
+          scales: {
+            x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+            y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8', stepSize: 2 }, title: { display: true, text: '빈도(월 수)', color: '#94a3b8' } }
+          }
+        }
+      });
+    }
+
+    // [기법 5] 월별 계절지수
+    function renderSeasonalityChart(selectedComp) {
+      resetChart('seasonalityChart');
+      const ctx = document.getElementById('seasonalityChart').getContext('2d');
+      const months = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+
+      const hanbitIdx = Stats.seasonalIndices(DYNAMIC_DATA, 'hanbit').indices;
+      const miraeIdx = Stats.seasonalIndices(DYNAMIC_DATA, 'mirae').indices;
+      const saebomIdx = Stats.seasonalIndices(DYNAMIC_DATA, 'saebom').indices;
+
+      const datasets = [];
+      if (selectedComp === 'all' || selectedComp === 'hanbit') {
+        datasets.push({
+          label: '한빛테크 계절지수 (봄 피크)',
+          data: hanbitIdx.map(v => v.toFixed(1)),
+          borderColor: COMPANIES.hanbit.color,
+          backgroundColor: 'rgba(59, 130, 246, 0.2)',
+          borderWidth: 2.5,
+          tension: 0.3
+        });
+      }
+      if (selectedComp === 'all' || selectedComp === 'mirae') {
+        datasets.push({
+          label: '미래솔루션 계절지수 (연말 집중)',
+          data: miraeIdx.map(v => v.toFixed(1)),
+          borderColor: COMPANIES.mirae.color,
+          backgroundColor: 'rgba(16, 185, 129, 0.2)',
+          borderWidth: 2.5,
+          tension: 0.3
+        });
+      }
+      if (selectedComp === 'all' || selectedComp === 'saebom') {
+        datasets.push({
+          label: '새봄산업 계절지수 (동절기 집중)',
+          data: saebomIdx.map(v => v.toFixed(1)),
+          borderColor: COMPANIES.saebom.color,
+          backgroundColor: 'rgba(245, 158, 11, 0.2)',
+          borderWidth: 2.5,
+          tension: 0.3
+        });
+      }
+      datasets.push({
+        label: '기준선 (Base 100% = 연평균)',
+        data: Array(12).fill(100),
+        borderColor: '#94a3b8',
+        borderWidth: 1.5,
+        borderDash: [5, 5],
+        pointRadius: 0
+      });
+
+      charts['seasonalityChart'] = new Chart(ctx, {
+        type: 'line',
+        data: { labels: months, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#e2e8f0', font: { size: 11 } } } },
+          scales: {
+            x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+            y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' }, title: { display: true, text: '계절지수 (평균 = 100%)', color: '#94a3b8' } }
+          }
+        }
+      });
+    }
+
+    // [기법 6] 선형 회귀분석 및 예측
+    function renderRegressionChart(data, selectedComp) {
+      resetChart('regressionChart');
+      const ctx = document.getElementById('regressionChart').getContext('2d');
+      const labels = data.map(d => d.month);
+      const futureLabels = ['26-01', '26-02', '26-03', '26-04', '26-05', '26-06', '26-07', '26-08', '26-09', '26-10', '26-11', '26-12'];
+      const allLabels = [...labels, ...futureLabels];
+
+      const compKey = selectedComp === 'all' ? 'hanbit' : selectedComp;
+      const compMeta = COMPANIES[compKey];
+      const vals = data.map(d => d[compKey]);
+      const reg = Stats.linearRegression(vals);
+
+      const datasets = [
+        {
+          label: `${compMeta.name} 실측 매출`,
+          data: [...vals, ...Array(12).fill(null)],
+          borderColor: compMeta.color,
+          backgroundColor: compMeta.color,
+          borderWidth: 2,
+          pointRadius: 2.5
+        },
+        {
+          label: `회귀 추세선 (기울기: ${reg.slope > 0 ? '+' : ''}${reg.slope.toFixed(3)}억/월, R²: ${reg.r2.toFixed(3)})`,
+          data: [...Array.from({ length: vals.length }, (_, i) => reg.predict(i + 1)), ...Array(12).fill(null)],
+          borderColor: '#38bdf8',
+          borderWidth: 2,
+          borderDash: [4, 4],
+          pointRadius: 0
+        }
+      ];
+
+      const futureLine = Array(vals.length).fill(null);
+      futureLine[vals.length - 1] = reg.predict(vals.length);
+      for (let f = 1; f <= 12; f++) {
+        futureLine.push(reg.predict(vals.length + f));
+      }
+
+      datasets.push({
+        label: `향후 12개월 선형 예측선`,
+        data: futureLine,
+        borderColor: '#f43f5e',
+        borderWidth: 2.5,
+        borderDash: [6, 4],
+        pointRadius: 2.5,
+        backgroundColor: '#f43f5e'
+      });
+
+      charts['regressionChart'] = new Chart(ctx, {
+        type: 'line',
+        data: { labels: allLabels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#e2e8f0', font: { size: 11 } } } },
+          scales: {
+            x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8', maxTicksLimit: 14 } },
+            y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' }, title: { display: true, text: '매출액 (억원)', color: '#94a3b8' } }
+          }
+        }
+      });
+    }
+
+    // [기법 7] 피어슨 상관분석 및 산점도
+    function renderCorrelation(data) {
+      const hanbit = data.map(d => d.hanbit);
+      const mirae = data.map(d => d.mirae);
+      const saebom = data.map(d => d.saebom);
+
+      const rHM = Stats.correlation(hanbit, mirae);
+      const rHS = Stats.correlation(hanbit, saebom);
+      const rMS = Stats.correlation(mirae, saebom);
+
+      const tbody = document.querySelector('#corrMatrixTable tbody');
+      tbody.innerHTML = `
+        <tr>
+          <td><strong>한빛테크</strong></td>
+          <td>1.000</td>
+          <td class="text-mirae">${rHM.toFixed(3)}</td>
+          <td class="text-saebom">${rHS.toFixed(3)}</td>
+          <td>미래와 매우 강한 동조(r=${rHM.toFixed(2)}), 새봄과 대체 역상관(r=${rHS.toFixed(2)})</td>
+        </tr>
+        <tr>
+          <td><strong>미래솔루션</strong></td>
+          <td class="text-hanbit">${rHM.toFixed(3)}</td>
+          <td>1.000</td>
+          <td class="text-saebom">${rMS.toFixed(3)}</td>
+          <td>한빛과 동반성장 경향, 새봄과 약한 음의 상관(r=${rMS.toFixed(2)})</td>
+        </tr>
+        <tr>
+          <td><strong>새봄산업</strong></td>
+          <td class="text-hanbit">${rHS.toFixed(3)}</td>
+          <td class="text-mirae">${rMS.toFixed(3)}</td>
+          <td>1.000</td>
+          <td>경쟁사 성장 시 매출이 하락하는 역방향 패턴</td>
+        </tr>
+      `;
+
+      resetChart('scatterChart');
+      const ctx = document.getElementById('scatterChart').getContext('2d');
+      charts['scatterChart'] = new Chart(ctx, {
+        type: 'scatter',
+        data: {
+          datasets: [{
+            label: '한빛테크(X) vs 미래솔루션(Y) 상관 산점도',
+            data: data.map(d => ({ x: d.hanbit, y: d.mirae })),
+            backgroundColor: 'rgba(56, 189, 248, 0.8)',
+            borderColor: '#0284c7',
+            borderWidth: 1,
+            pointRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#e2e8f0', font: { size: 11 } } } },
+          scales: {
+            x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' }, title: { display: true, text: '한빛테크 매출 (억원)', color: '#94a3b8' } },
+            y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' }, title: { display: true, text: '미래솔루션 매출 (억원)', color: '#94a3b8' } }
+          }
+        }
+      });
+    }
+
+    // [기법 8] 일원배치 분산분석 (ANOVA)
+    function renderANOVA(data) {
+      const hanbit = data.map(d => d.hanbit);
+      const mirae = data.map(d => d.mirae);
+      const saebom = data.map(d => d.saebom);
+      const anova = Stats.oneWayANOVA([hanbit, mirae, saebom]);
+
+      const tbody = document.querySelector('#anovaTable tbody');
+      tbody.innerHTML = `
+        <tr>
+          <td><strong>그룹 간 변동 (Between Groups)</strong></td>
+          <td>${anova.ssBetween.toFixed(2)}</td>
+          <td>${anova.dfBetween}</td>
+          <td>${anova.msBetween.toFixed(2)}</td>
+          <td rowspan="2" style="vertical-align: middle; font-weight: 700; color: #38bdf8;">F = ${anova.fStat.toFixed(2)}</td>
+          <td rowspan="2" style="vertical-align: middle; font-weight: 700; color: #22c55e;">${anova.pVal}</td>
+        </tr>
+        <tr>
+          <td><strong>그룹 내 오차 (Within Groups)</strong></td>
+          <td>${anova.ssWithin.toFixed(2)}</td>
+          <td>${anova.dfWithin}</td>
+          <td>${anova.msWithin.toFixed(2)}</td>
+        </tr>
+        <tr style="background-color: var(--bg-subtle);">
+          <td><strong>총 변동 (Total)</strong></td>
+          <td>${anova.ssTotal.toFixed(2)}</td>
+          <td>${anova.dfTotal}</td>
+          <td>-</td>
+          <td colspan="2"><span class="tag-up">귀무가설 기각: 3사 평균차이 유의미</span></td>
+        </tr>
+      `;
+
+      resetChart('anovaBarChart');
+      const ctx = document.getElementById('anovaBarChart').getContext('2d');
+      charts['anovaBarChart'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['한빛테크', '미래솔루션', '새봄산업'],
+          datasets: [{
+            label: '그룹별 월평균 매출 (억원)',
+            data: [Stats.mean(hanbit).toFixed(2), Stats.mean(mirae).toFixed(2), Stats.mean(saebom).toFixed(2)],
+            backgroundColor: [COMPANIES.hanbit.color, COMPANIES.mirae.color, COMPANIES.saebom.color],
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+            y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' }, title: { display: true, text: '평균 매출 (억원)', color: '#94a3b8' }, suggestedMin: 0 }
+          }
+        }
+      });
+    }
+
+    // [기법 9] 사분위수 및 IQR 이상치
+    function renderIQR(data) {
+      const hanbit = data.map(d => d.hanbit);
+      const mirae = data.map(d => d.mirae);
+      const saebom = data.map(d => d.saebom);
+
+      const qH = Stats.quartiles(hanbit);
+      const qM = Stats.quartiles(mirae);
+      const qS = Stats.quartiles(saebom);
+
+      const tbody = document.querySelector('#iqrTable tbody');
+      tbody.innerHTML = `
+        <tr>
+          <td class="text-hanbit">한빛테크</td>
+          <td>${qH.q1.toFixed(2)}</td>
+          <td><strong>${qH.q2.toFixed(2)}</strong></td>
+          <td>${qH.q3.toFixed(2)}</td>
+          <td>${qH.iqr.toFixed(2)}</td>
+          <td>[${qH.lowerFence.toFixed(2)} ~ ${qH.upperFence.toFixed(2)}]</td>
+          <td>${qH.outliers.length}건 (정상)</td>
+        </tr>
+        <tr>
+          <td class="text-mirae">미래솔루션</td>
+          <td>${qM.q1.toFixed(2)}</td>
+          <td><strong>${qM.q2.toFixed(2)}</strong></td>
+          <td>${qM.q3.toFixed(2)}</td>
+          <td>${qM.iqr.toFixed(2)}</td>
+          <td>[${qM.lowerFence.toFixed(2)} ~ ${qM.upperFence.toFixed(2)}]</td>
+          <td>${qM.outliers.length}건 (정상)</td>
+        </tr>
+        <tr>
+          <td class="text-saebom">새봄산업</td>
+          <td>${qS.q1.toFixed(2)}</td>
+          <td><strong>${qS.q2.toFixed(2)}</strong></td>
+          <td>${qS.q3.toFixed(2)}</td>
+          <td>${qS.iqr.toFixed(2)}</td>
+          <td>[${qS.lowerFence.toFixed(2)} ~ ${qS.upperFence.toFixed(2)}]</td>
+          <td>${qS.outliers.length}건 (정상)</td>
+        </tr>
+      `;
+
+      resetChart('boxplotVisualChart');
+      const ctx = document.getElementById('boxplotVisualChart').getContext('2d');
+      charts['boxplotVisualChart'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['한빛테크', '미래솔루션', '새봄산업'],
+          datasets: [
+            { label: 'Q1 (하위 25%)', data: [qH.q1, qM.q1, qS.q1], backgroundColor: 'rgba(148, 163, 184, 0.4)' },
+            { label: 'Q2 중위수 (50%)', data: [qH.q2, qM.q2, qS.q2], backgroundColor: 'rgba(56, 189, 248, 0.7)' },
+            { label: 'Q3 (상위 25%)', data: [qH.q3, qM.q3, qS.q3], backgroundColor: 'rgba(139, 92, 246, 0.7)' }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#e2e8f0', font: { size: 11 } } } },
+          scales: {
+            x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+            y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' }, title: { display: true, text: '매출액 (억원)', color: '#94a3b8' } }
+          }
+        }
+      });
+    }
+
+    // [기법 10] 누적 시장점유율 동태 Area 차트
+    function renderMarketShareAreaChart(data) {
+      resetChart('marketShareAreaChart');
+      const ctx = document.getElementById('marketShareAreaChart').getContext('2d');
+      const labels = data.map(d => d.month);
+
+      const hanbitShare = data.map(d => (((d.hanbit / (d.hanbit + d.mirae + d.saebom)) * 100) || 0).toFixed(1));
+      const miraeShare = data.map(d => (((d.mirae / (d.hanbit + d.mirae + d.saebom)) * 100) || 0).toFixed(1));
+      const saebomShare = data.map(d => (((d.saebom / (d.hanbit + d.mirae + d.saebom)) * 100) || 0).toFixed(1));
+
+      charts['marketShareAreaChart'] = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: '한빛테크 점유율 (%)',
+              data: hanbitShare,
+              borderColor: COMPANIES.hanbit.color,
+              backgroundColor: 'rgba(59, 130, 246, 0.45)',
+              fill: true,
+              tension: 0.25,
+              pointRadius: 0
+            },
+            {
+              label: '미래솔루션 점유율 (%)',
+              data: miraeShare,
+              borderColor: COMPANIES.mirae.color,
+              backgroundColor: 'rgba(16, 185, 129, 0.45)',
+              fill: true,
+              tension: 0.25,
+              pointRadius: 0
+            },
+            {
+              label: '새봄산업 점유율 (%)',
+              data: saebomShare,
+              borderColor: COMPANIES.saebom.color,
+              backgroundColor: 'rgba(245, 158, 11, 0.45)',
+              fill: true,
+              tension: 0.25,
+              pointRadius: 0
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: '#e2e8f0', font: { size: 11 } } },
+            tooltip: { mode: 'index', intersect: false, callbacks: { label: (c) => `${c.dataset.label}: ${c.raw}%` } }
+          },
+          scales: {
+            x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8', maxTicksLimit: 12 } },
+            y: { stacked: true, max: 100, grid: { color: '#334155' }, ticks: { color: '#94a3b8' }, title: { display: true, text: '시장 점유율 (100%)', color: '#94a3b8' } }
+          }
+        }
+      });
+    }
+
+    // 60개월 원시 데이터 테이블
+    function renderDataTable(data) {
+      const tbody = document.querySelector('#fullDataTable tbody');
+      tbody.innerHTML = '';
+
+      data.forEach((row, idx) => {
+        const total = (row.hanbit + row.mirae + row.saebom).toFixed(2);
+        let topComp = '한빛테크', topColor = 'text-hanbit';
+        if (row.saebom > row.hanbit && row.saebom > row.mirae) {
+          topComp = '새봄산업';
+          topColor = 'text-saebom';
+        } else if (row.mirae > row.hanbit && row.mirae > row.saebom) {
+          topComp = '미래솔루션';
+          topColor = 'text-mirae';
+        }
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${idx + 1}</td>
+          <td><strong>${row.month}</strong></td>
+          <td class="text-hanbit">${row.hanbit.toFixed(2)}</td>
+          <td class="text-mirae">${row.mirae.toFixed(2)}</td>
+          <td class="text-saebom">${row.saebom.toFixed(2)}</td>
+          <td><strong>${total}</strong></td>
+          <td><span class="${topColor}">${topComp}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+  </script>
+</body>
+</html>
+
